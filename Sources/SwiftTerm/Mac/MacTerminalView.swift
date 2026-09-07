@@ -1199,6 +1199,15 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         }
     }
 
+    /// Underline style used for highlighted links; `.none` disables the underline.
+    public var linkUnderlineStyle: UnderlineStyle = .dashed {
+        didSet {
+            urlAttributes = [:]
+            terminal.updateFullScreen()
+            queuePendingDisplay()
+        }
+    }
+
     var linkHighlightRange: [Terminal.LinkMatch.RowRange]?
 
     /**

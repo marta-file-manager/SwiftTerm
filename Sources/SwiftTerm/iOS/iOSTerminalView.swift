@@ -161,6 +161,15 @@ open class TerminalView: UIScrollView, UITextInputTraits, UIKeyInput, UIScrollVi
         }
     }
 
+    /// Underline style used for highlighted links; `.none` disables the underline.
+    public var linkUnderlineStyle: UnderlineStyle = .dashed {
+        didSet {
+            urlAttributes = [:]
+            terminal.updateFullScreen()
+            queuePendingDisplay()
+        }
+    }
+
     private var lastReportedLink: String?
     var commandActive = false
     private var activeCommandKeys: Set<UIKeyboardHIDUsage> = []

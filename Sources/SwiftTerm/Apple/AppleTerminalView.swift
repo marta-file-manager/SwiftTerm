@@ -923,9 +923,11 @@ extension TerminalView {
         }
 
         if withUrl {
-            nsattr [.underlineStyle] = NSUnderlineStyle.single.rawValue
-            nsattr [.underlineColor] = fgColor
-            nsattr [SwiftTermUnderlineStyleKey] = Int(UnderlineStyle.dashed.rawValue)
+            if linkUnderlineStyle != .none {
+                nsattr [.underlineStyle] = NSUnderlineStyle.single.rawValue
+                nsattr [.underlineColor] = fgColor
+                nsattr [SwiftTermUnderlineStyleKey] = Int(linkUnderlineStyle.rawValue)
+            }
 
             // Add to cache; truecolor attributes are unbounded, so cap it
             if urlAttributes.count >= 4096 {
