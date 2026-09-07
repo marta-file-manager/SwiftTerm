@@ -141,4 +141,32 @@ final class GhosttyImplicitLinkDetectionTests: TerminalDelegate {
         let row2 = terminal.link(at: .buffer(Position(col: 2, row: 2)), mode: .explicitAndImplicit)
         #expect(row2 == input)
     }
+
+    @Test func testImplicitLinkFilterRejectsMatches() {
+        let input = "see https://example.com and ~/Downloads today"
+        let terminal = makeTerminal(for: input)
+        terminal.feed(text: input)
+
+        let urlHit = Position(col: 6, row: 0)
+        let pathHit = Position(col: 29, row: 0)
+
+        #expect(terminal.link(at: .buffer(urlHit), mode: .explicitAndImplicit) == "https://example.com")
+        #expect(terminal.link(at: .buffer(pathHit), mode: .explicitAndImplicit) == "~/Downloads today")
+
+        terminal.implicitLinkFilter = { $0.hasPrefix("https://") }
+        #expect(terminal.link(at: .buffer(urlHit), mode: .explicitAndImplicit) == "https://example.com")
+        #expect(terminal.link(at: .buffer(pathHit), mode: .explicitAndImplicit) == nil)
+
+        terminal.implicitLinkFilter = { $0.hasPrefix("~/") }
+        #expect(terminal.link(at: .buffer(urlHit), mode: .explicitAndImplicit) == nil)
+        #expect(terminal.link(at: .buffer(pathHit), mode: .explicitAndImplicit) == "~/Downloads today")
+
+        terminal.implicitLinkFilter = { _ in false }
+        #expect(terminal.link(at: .buffer(urlHit), mode: .explicitAndImplicit) == nil)
+        #expect(terminal.link(at: .buffer(pathHit), mode: .explicitAndImplicit) == nil)
+
+        terminal.implicitLinkFilter = nil
+        #expect(terminal.link(at: .buffer(urlHit), mode: .explicitAndImplicit) == "https://example.com")
+        #expect(terminal.link(at: .buffer(pathHit), mode: .explicitAndImplicit) == "~/Downloads today")
+    }
 }

@@ -7146,6 +7146,11 @@ open class Terminal {
         case explicitAndImplicit
     }
 
+    /// When set, an implicit (regex-detected) link is only reported when the predicate accepts
+    /// its text, both for lookup and hover highlighting; nil accepts every match.
+    /// Explicit OSC 8 hyperlinks are not affected by this setting.
+    public var implicitLinkFilter: ((String) -> Bool)?
+
     struct LinkMatch {
         struct RowRange: Equatable {
             let row: Int
@@ -7317,6 +7322,9 @@ open class Terminal {
                 continue
             }
             if suppressGhosttyLikeMatch(textRange, in: lineMap.text) {
+                continue
+            }
+            if let implicitLinkFilter, !implicitLinkFilter(String(lineMap.text[textRange])) {
                 continue
             }
 
