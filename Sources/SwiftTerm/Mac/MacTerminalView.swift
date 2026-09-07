@@ -1208,6 +1208,9 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         }
     }
 
+    /// When enabled, the pointer shows a pointing hand while a highlighted link is under it.
+    public var usePointingHandForLinks: Bool = false
+
     var linkHighlightRange: [Terminal.LinkMatch.RowRange]?
 
     /**
@@ -1264,7 +1267,16 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     
     public override func cursorUpdate(with event: NSEvent)
     {
-        NSCursor.iBeam.set ()
+        updateLinkCursor ()
+    }
+
+    func updateLinkCursor ()
+    {
+        if usePointingHandForLinks, linkHighlightRange != nil {
+            NSCursor.pointingHand.set ()
+        } else {
+            NSCursor.iBeam.set ()
+        }
     }
     
     func makeFirstResponder ()
@@ -1509,6 +1521,9 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             }
         } else {
             turnOffUrlPreview ()
+            if usePointingHandForLinks {
+                updateLinkCursor ()
+            }
         }
         if terminal.keyboardEnhancementFlags.contains(.reportAllKeys),
            !kittyIsComposing,
@@ -3102,6 +3117,12 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
 
     func updateHoverLink(at position: Position, commandOverride: Bool? = nil)
     {
+        defer {
+            if usePointingHandForLinks {
+                updateLinkCursor ()
+            }
+        }
+
         let hoverModes: [LinkHighlightMode] = [.hover, .hoverWithModifier]
         guard hoverModes.contains(linkHighlightMode) else {
             if linkHighlightRange != nil {
