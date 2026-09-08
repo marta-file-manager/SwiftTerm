@@ -1886,6 +1886,10 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
             send (EscapeSequences.emacsBack)
         case #selector(moveToRightEndOfLine(_:)):
             send (EscapeSequences.emacsForward)
+        case Selector(("noop:")):
+            // AppKit maps key equivalents with no binding (e.g. unused Cmd combinations) to noop:,
+            // which explicitly means "do nothing" -- not worth a log line.
+            break
         default:
             print ("Unhandle selector \(selector)")
         }
