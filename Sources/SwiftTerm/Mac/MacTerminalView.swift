@@ -316,6 +316,9 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     /// programmatically (see `SelectionService`).
     public var selection: SelectionService!
     private var scroller: NSScroller!
+    private var customScroller: TerminalCustomScroller?
+    private var customScrollerThickness: CGFloat = 0
+    private var customScrollerWidthConstraint: NSLayoutConstraint?
     
     // Attribute dictionary, maps a console attribute (color, flags) to the corresponding dictionary
     // of attributes for an NSAttributedString
@@ -534,7 +537,9 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         } else {
             addSubview(newView, positioned: .below, relativeTo: nil)
         }
-        if let scroller = scroller {
+        if let customScroller {
+            addSubview(customScroller, positioned: .above, relativeTo: newView)
+        } else if let scroller = scroller {
             addSubview(scroller, positioned: .above, relativeTo: newView)
         }
     }
@@ -1130,6 +1135,39 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
         // Scroller position is managed by Auto Layout constraints
     }
 
+    /// Replaces the built-in scroller with a host-drawn view laid out along the trailing edge.
+    /// Passing the already-installed view updates its reserved width and reflows the terminal
+    /// (e.g. when the system scroll bar preference changes). The terminal pushes scroll state into
+    /// the view; sending scroll commands back is the host's responsibility (e.g. via
+    /// `scroll(toPosition:)`, `pageUp()`, `pageDown()`).
+    public func setCustomScroller(_ view: TerminalCustomScroller, thickness: CGFloat) {
+        if view === customScroller {
+            guard customScrollerThickness != thickness else { return }
+            customScrollerThickness = thickness
+            customScrollerWidthConstraint?.constant = thickness
+            _ = processSizeChange(newSize: frame.size)
+            needsDisplay = true
+            return
+        }
+
+        customScroller?.removeFromSuperview()
+        scroller?.removeFromSuperview()
+        customScroller = view
+        customScrollerThickness = thickness
+
+        view.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(view)
+        let widthConstraint = view.widthAnchor.constraint(equalToConstant: thickness)
+        customScrollerWidthConstraint = widthConstraint
+        NSLayoutConstraint.activate([
+            view.trailingAnchor.constraint(equalTo: trailingAnchor),
+            view.topAnchor.constraint(equalTo: topAnchor),
+            view.bottomAnchor.constraint(equalTo: bottomAnchor),
+            widthConstraint
+        ])
+        updateScroller()
+    }
+
     /// This method sents the `nativeForegroundColor` and `nativeBackgroundColor`
     /// to match macOS default colors for text and its background.
     public func configureNativeColors ()
@@ -1151,7 +1189,8 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     }
 
     private var reservedScrollerWidth: CGFloat {
-        scroller?.isHidden == true ? 0 : scrollerWidth
+        if customScroller != nil { return customScrollerThickness }
+        return scroller?.isHidden == true ? 0 : scrollerWidth
     }
 
     /**
@@ -1225,6 +1264,10 @@ open class TerminalView: NSView, NSTextInputClient, NSUserInterfaceValidations, 
     }
     
     func updateScroller () {
+        if let customScroller {
+            customScroller.scrollStateChanged(position: scrollPosition, thumbProportion: scrollThumbsize, canScroll: canScroll)
+            return
+        }
         scroller.isEnabled = canScroll
         scroller.doubleValue = scrollPosition
         scroller.knobProportion = scrollThumbsize
@@ -3671,4 +3714,14 @@ final class DictationOverlayTextView: NSTextView {
         }
     }
 }
+
+/// A host-supplied scroll indicator installed with `TerminalView.setCustomScroller(_:thickness:)`.
+/// The terminal lays the view out along its trailing edge and pushes scroll state into it;
+/// the host wires user interaction back to the terminal's scrolling methods itself.
+@MainActor
+public protocol TerminalCustomScroller: NSView {
+    /// Called whenever the terminal's scroll position, thumb size, or scrollability changes.
+    func scrollStateChanged(position: Double, thumbProportion: CGFloat, canScroll: Bool)
+}
+
 #endif
